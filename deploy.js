@@ -1,8 +1,13 @@
-var cmd = require('node-cmd');
-var path, node_ssh, ssh, fs;
+let cmd = require('node-cmd');
+
+let path, 
+node_ssh, 
+ssh, 
+fs;
 fs = require('fs');
 path = require('path');
 node_ssh = require('node-ssh');
+
 ssh = new node_ssh();
 
 // the method that starts the deployment process
@@ -13,27 +18,25 @@ function main() {
 
 // installs PM2
 function installPM2() {
-  return ssh.execCommand(
-    'sudo npm install pm2 -g', {
+  return ssh.execCommand('sudo npm install pm2 -g', {
       cwd: '/home/ubuntu'
-  });
+    });
 }
 
 // transfers local project to the remote server
 function transferProjectToRemote(failed, successful) {
-  return ssh.putDirectory(
-    '../hackathon-starter',
+  return ssh.putDirectory('../hackathon-starter',
     '/home/ubuntu/hackathon-starter',
     {
       recursive: true,
       concurrency: 1,
-      validate: function(itemPath) {
+      validate(itemPath) {
         const baseName = path.basename(itemPath);
         return (
           baseName.substr(0, 1) !== '.' && baseName !== 'node_modules' // do not allow dot files
         ); // do not allow node_modules
       },
-      tick: function(localPath, remotePath, error) {
+      tick(localPath, remotePath, error) {
         if (error) {
           failed.push(localPath);
           console.log('failed.push: ' + localPath);
@@ -42,40 +45,35 @@ function transferProjectToRemote(failed, successful) {
           console.log('successful.push: ' + localPath);
         }
       }
-    }
-  );
+    });
 }
 
 // creates a temporary folder on the remote server
 function createRemoteTempFolder() {
-  return ssh.execCommand(
-    'rm -rf hackathon-starter && mkdir hackathon-starter', {
+  return ssh.execCommand('rm -rf hackathon-starter && mkdir hackathon-starter', {
       cwd: '/home/ubuntu'
-  });
+    });
 }
 
 // stops mongodb and node services on the remote server
 function stopRemoteServices() {
-  return ssh.execCommand(
-    'pm2 stop all && sudo service mongod stop', {
+  return ssh.execCommand('pm2 stop all && sudo service mongod stop', {
       cwd: '/home/ubuntu'
-  });
+    });
 }
 
 // updates the project source on the server
 function updateRemoteApp() {
-  return ssh.execCommand(
-    'cp -r hackathon-starter/* hackathon-starter/ && rm -rf hackathon-starter', {
+  return ssh.execCommand('cp -r hackathon-starter/* hackathon-starter/ && rm -rf hackathon-starter', {
       cwd: '/home/ubuntu'
-  });
+    });
 }
 
 // restart mongodb and node services on the remote server
 function restartRemoteServices() {
-  return ssh.execCommand(
-    'cd hackathon-starter && sudo service mongod start && pm2 start app.js', {
+  return ssh.execCommand('cd hackathon-starter && sudo service mongod start && pm2 start app.js', {
       cwd: '/home/ubuntu'
-  });
+    });
 }
 
 // connect to the remote server
@@ -89,16 +87,16 @@ function sshConnect() {
       username: 'ubuntu',
       privateKey: 'hs-key.pem'
     })
-    .then(function() {
+    .then(() => {
       console.log('SSH Connection established.');
       console.log('Installing PM2...');
       return installPM2();
     })
-    .then(function() {
+    .then(() => {
       console.log('Creating `hackathon-starter-temp` folder.');
       return createRemoteTempFolder();
     })
-    .then(function(result) {
+    .then((result) => {
       const failed = [];
       const successful = [];
       if (result.stdout) {
@@ -111,7 +109,7 @@ function sshConnect() {
       console.log('Transferring files to remote server...');
       return transferProjectToRemote(failed, successful);
     })
-    .then(function(status) {
+    .then((status) => {
       if (status) {
         console.log('Stopping remote services.');
         return stopRemoteServices();
@@ -123,11 +121,11 @@ function sshConnect() {
       if (status) {
         console.log('Updating remote app.');
         return updateRemoteApp();
-      } else {
+      } 
         return Promise.reject(failed.join(', '));
-      }
+      
     })
-    .then(function(status) {
+    .then((status) => {
       if (status) {
         console.log('Restarting remote services...');
         return restartRemoteServices();
@@ -135,11 +133,11 @@ function sshConnect() {
         return Promise.reject(failed.join(', '));
       }
     })
-    .then(function() {
+    .then(() => {
       console.log('DEPLOYMENT COMPLETE!');
       process.exit(1);
     })
-    .catch(e => {
+    .catch((e) => {
       console.error(e);
       process.exit(1);
     });
